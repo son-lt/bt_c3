@@ -30,7 +30,36 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  final ScrollController verticalScrollController = ScrollController();
+  final ScrollController horizontalScrollController = ScrollController();
   bool isDarkMode = false;
+  bool showGridLoadMore = false;
+  int gridItemCount = Config.itemAmount;
+
+  @override
+  void initState() {
+    super.initState();
+    verticalScrollController.addListener(onVerticalScroll);
+  }
+
+  void onVerticalScroll() {
+    if (verticalScrollController.offset >=
+            verticalScrollController.position.maxScrollExtent &&
+        !verticalScrollController.position.outOfRange) {
+      setState(() {
+        showGridLoadMore = !showGridLoadMore;
+      });
+      Future.delayed(
+        const Duration(seconds: 1),
+        () {
+          setState(() {
+            showGridLoadMore = !showGridLoadMore;
+            gridItemCount += Config.itemIncrement;
+          });
+        },
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -46,13 +75,17 @@ class _MyHomePageState extends State<MyHomePage> {
         color: primaryColor,
         padding: const EdgeInsets.only(top: 16),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            saladItem(
-              title1: 'Salad',
-              title2: 'Many recipes',
+            Expanded(
+              flex: 1,
+              child: buildListView(),
             ),
             buildSortBy(labelColor: secondColor),
-            buildGridItem(),
+            Expanded(
+              flex: 4,
+              child: buildGridView(),
+            ),
           ],
         ),
       ),
@@ -97,34 +130,71 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  Widget buildGridItem() {
-    return Expanded(
-      child: RefreshIndicator(
-        onRefresh: () async {},
-        child: GridView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
-            childAspectRatio: 0.7,
-          ),
-          itemBuilder: (context, index) {
-            return saladItem(
-              title1: "Salad $index",
-              title2: "The one who made Salad $index",
-              inGrid: true,
-            );
+  Widget buildListView() {
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      itemCount: 2,
+      scrollDirection: Axis.horizontal,
+      itemBuilder: (BuildContext context, int index) {
+        return saladItem(
+            title1: 'Salad',
+            title2: 'Many recipes',
+            image: "assets/images/salad_landscape.jpg");
+      },
+      separatorBuilder: (BuildContext context, int index) {
+        return const SizedBox(width: 20);
+      },
+    );
+  }
+
+  Widget buildGridView() {
+    return Stack(
+      children: [
+        RefreshIndicator(
+          onRefresh: () async {
+            setState(() {
+              gridItemCount = Config.itemAmount;
+            });
           },
-          itemCount: 6,
+          child: GridView.builder(
+            controller: verticalScrollController,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              childAspectRatio: 0.7,
+            ),
+            itemBuilder: (context, index) {
+              return saladItem(
+                title1: "Salad $index",
+                title2: "The one who made Salad $index",
+                image: "assets/images/salad_portrait.webp",
+                inGrid: true,
+              );
+            },
+            itemCount: gridItemCount,
+          ),
         ),
-      ),
+        if (showGridLoadMore)
+          const Positioned(
+            left: 0,
+            right: 0,
+            bottom: 10,
+            child: Center(
+              child: CircularProgressIndicator(
+                color: Colors.grey,
+              ),
+            ),
+          ),
+      ],
     );
   }
 
   Widget saladItem({
     required String title1,
     required String title2,
+    required String image,
     bool inGrid = false,
   }) {
     int padding = inGrid ? 56 : 40;
@@ -134,6 +204,18 @@ class _MyHomePageState extends State<MyHomePage> {
 
     return Stack(
       children: [
+        Container(
+          width: (MediaQuery.of(context).size.width - padding) / widthRatio,
+          height: MediaQuery.of(context).size.height * heightRatio,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.asset(image, fit: BoxFit.fitHeight),
+          ),
+        ),
         Container(
           width: (MediaQuery.of(context).size.width - padding) / widthRatio,
           height: MediaQuery.of(context).size.height * heightRatio,
